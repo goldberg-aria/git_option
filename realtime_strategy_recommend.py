@@ -15,7 +15,7 @@ if submitted:
     try:
         data = yf.Ticker(ticker)
         price = data.history(period='1d')['Close'][-1]
-        st.write(f"현재가: {price:.2f}")
+        st.subheader(f"기초자산({ticker.upper()}) 현재가: ${price:.2f}")
         # 1. 옵션 만기 리스트
         expiries = data.options
         expiry = st.selectbox("옵션 만기 선택", expiries)
