@@ -66,13 +66,16 @@ try:
     else:
         st.info("이 만기 옵션 체인에는 IV(내재변동성) 데이터가 없습니다.")
 
-    # 2번 기능: S&P500 VIX(변동성 지수) 표시
+    # 2번 기능: S&P500 VIX(변동성 지수) 표시 및 시뮬레이션에 반영
+    vix_vol = 0.2
     try:
         vix = yf.Ticker("^VIX")
         vix_price = vix.history(period='1d')['Close'].iloc[-1]
         st.subheader(f"S&P500 변동성 지수(VIX): {vix_price:.2f}")
+        vix_vol = float(vix_price) / 100
     except Exception:
         st.info("VIX 데이터를 불러올 수 없습니다.")
+        vix_vol = 0.2
 
     # 전략별 시뮬레이션 결과 자동 출력
     strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
@@ -82,7 +85,7 @@ try:
             "stock_price": float(price),
             "start_date": start_date.strftime("%Y-%m-%d"),
             "target_date": target_date.strftime("%Y-%m-%d"),
-            "volatility": 0.2,
+            "volatility": vix_vol,
             "interest_rate": 0.01,
             "min_stock": float(price) * 0.8,
             "max_stock": float(price) * 1.2,
