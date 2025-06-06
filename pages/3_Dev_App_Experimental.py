@@ -93,8 +93,12 @@ try:
             "기대수익": float(out.expected_profit) if out.expected_profit is not None else None,
             "기대손실": float(out.expected_loss) if out.expected_loss is not None else None,
         })
-        # 1번: 전략별 손익곡선 시각화 데이터 저장
-        payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
+        # 1번: 전략별 손익곡선 시각화 데이터 저장 (속성 체크)
+        if hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
+            payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
+        else:
+            payoff_curves[strategy] = ([], [])
+            st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out 속성: {dir(out)}")
     df = pd.DataFrame(results)
     st.subheader("전략별 시뮬레이션 결과")
     st.dataframe(df)
@@ -104,7 +108,10 @@ try:
     for strategy in strategies:
         x, y = payoff_curves[strategy]
         fig, ax = plt.subplots()
-        ax.plot(x, y, label=strategy)
+        if len(x) > 0 and len(y) > 0:
+            ax.plot(x, y, label=strategy)
+        else:
+            ax.text(0.5, 0.5, "손익곡선 데이터 없음", ha='center', va='center')
         ax.axvline(float(price), color='gray', linestyle='--', label='현재가')
         ax.set_title(f"{strategy} 손익곡선")
         ax.set_xlabel("기초자산 가격")
