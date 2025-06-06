@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from optionlab import run_strategy
 import pandas as pd
 import numpy as np
@@ -19,7 +19,7 @@ try:
     price = data.history(period='1d')['Close'].iloc[-1]
     st.subheader(f"기초자산({ticker.upper()}) 현재가: ${price:.2f}")
     # 오늘로부터 최소 2일 이후 만기일만 허용
-    today_utc = datetime.utcnow().date()
+    today_utc = datetime.now(timezone.utc).date()
     min_date = today_utc + timedelta(days=2)
     expiries = [d for d in data.options if datetime.strptime(d, "%Y-%m-%d").date() >= min_date]
     if not expiries:
@@ -45,9 +45,9 @@ try:
     strike = st.selectbox("행사가 선택", strikes, index=closest_idx)
     call_premium = calls[calls['strike'] == strike]['lastPrice'].values
     put_premium = puts[puts['strike'] == strike]['lastPrice'].values
-    call_premium = float(call_premium[0]) if len(call_premium) > 0 else None
-    put_premium = float(put_premium[0]) if len(put_premium) > 0 else None
-    st.write(f"콜옵션 프리미엄: {call_premium}, 풋옵션 프리미엄: {put_premium}")
+    call_premium_val = float(call_premium[0]) if len(call_premium) > 0 else 2.0
+    put_premium_val = float(put_premium[0]) if len(put_premium) > 0 else 1.5
+    st.write(f"콜옵션 프리미엄: {call_premium_val}, 풋옵션 프리미엄: {put_premium_val}")
 
     # 전략별 시뮬레이션 결과 자동 출력
     strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
@@ -65,24 +65,24 @@ try:
         }
         if strategy == "long_call":
             input_data["strategy"] = [{
-                "type": "call", "strike": float(strike), "premium": float(call_premium or 2), "n": 1, "action": "buy"
+                "type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"
             }]
         elif strategy == "short_put":
             input_data["strategy"] = [{
-                "type": "put", "strike": float(strike), "premium": float(put_premium or 1.5), "n": 1, "action": "sell"
+                "type": "put", "strike": float(strike), "premium": put_premium_val, "n": 1, "action": "sell"
             }]
         elif strategy == "vertical_call_spread":
             next_strike = float(strike) + 5
             next_call_premium = calls[calls['strike'] == next_strike]['lastPrice'].values
-            next_call_premium = float(next_call_premium[0]) if len(next_call_premium) > 0 else 1
+            next_call_premium_val = float(next_call_premium[0]) if len(next_call_premium) > 0 else 1.0
             input_data["strategy"] = [
-                {"type": "call", "strike": float(strike), "premium": float(call_premium or 2), "n": 1, "action": "buy"},
-                {"type": "call", "strike": next_strike, "premium": next_call_premium, "n": 1, "action": "sell"},
+                {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"},
+                {"type": "call", "strike": next_strike, "premium": next_call_premium_val, "n": 1, "action": "sell"},
             ]
         elif strategy == "covered_call":
             input_data["strategy"] = [
                 {"type": "stock", "n": 1, "action": "buy"},
-                {"type": "call", "strike": float(strike), "premium": float(call_premium or 2), "n": 1, "action": "sell"},
+                {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
             ]
         out = run_strategy(input_data)
         results.append({
