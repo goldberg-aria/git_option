@@ -20,6 +20,10 @@ try:
         st.error("오늘 이후 만기 옵션이 없습니다.")
         st.stop()
     expiry = st.selectbox("옵션 만기 선택", expiries)
+    target_date = datetime.strptime(expiry, "%Y-%m-%d").date()
+    start_date = today_utc
+    if start_date >= target_date:
+        start_date = target_date - timedelta(days=1)
     chain = data.option_chain(expiry)
     calls = chain.calls
     puts = chain.puts
@@ -40,10 +44,6 @@ try:
     strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
     results = []
     for strategy in strategies:
-        start_date = datetime.today()
-        target_date = datetime.strptime(expiry, "%Y-%m-%d")
-        if start_date >= target_date:
-            start_date = target_date - timedelta(days=1)
         input_data = {
             "stock_price": float(price),
             "start_date": start_date.strftime("%Y-%m-%d"),
