@@ -107,19 +107,22 @@ try:
             "기대수익": safe_float(out["expected_profit"]) if isinstance(out, dict) and "expected_profit" in out else safe_float(getattr(out, "expected_profit", None)),
             "기대손실": safe_float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else safe_float(getattr(out, "expected_loss", None)),
         })
-        # 손익곡선 데이터 추출 (dict/객체 모두 지원)
-        if isinstance(out, dict):
-            if "stock_prices" in out and "profit_loss" in out:
-                payoff_curves[strategy] = (out["stock_prices"], out["profit_loss"])
-            else:
-                payoff_curves[strategy] = ([], [])
-                st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out keys: {list(out.keys())}")
+        # 손익곡선 데이터 추출 (dict/객체/중첩 dict 모두 지원)
+        payoff_data = None
+        # 가설 1: out.data가 dict일 경우 (가장 가능성 높음)
+        if hasattr(out, 'data') and isinstance(out.data, dict):
+            payoff_data = out.data
+        # 가설 2: out 자체가 dict일 경우
+        elif isinstance(out, dict):
+            payoff_data = out
+
+        if payoff_data and "stock_prices" in payoff_data and "profit_loss" in payoff_data:
+            payoff_curves[strategy] = (payoff_data["stock_prices"], payoff_data["profit_loss"])
+        elif hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
+            payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
         else:
-            if hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
-                payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
-            else:
-                payoff_curves[strategy] = ([], [])
-                st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out 속성: {dir(out)}")
+            payoff_curves[strategy] = ([], [])
+            st.warning(f"{strategy} 전략: 손익곡선 데이터를 찾을 수 없습니다.")
     df = pd.DataFrame(results)
     st.subheader("전략별 시뮬레이션 결과")
     st.dataframe(df)
