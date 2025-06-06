@@ -9,8 +9,8 @@ import matplotlib
 
 matplotlib.use("Agg")  # streamlit 호환 백엔드 강제
 
-st.set_page_config(page_title="실제 옵션 체인 기반 전략 추천 (3_Dev_App)", layout="centered")
-st.title("실제 옵션 체인 기반 전략 추천 (3_Dev_App)")
+st.set_page_config(page_title="실제 옵션 체인 기반 전략 추천 (3_Dev_App_Experimental)", layout="centered")
+st.title("실제 옵션 체인 기반 전략 추천 (3_Dev_App_Experimental)")
 
 ticker = st.text_input("티커를 입력하세요 (예: AAPL, TSLA, SPY)", value="AAPL")
 
