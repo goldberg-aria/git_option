@@ -57,7 +57,6 @@ try:
     # 전략별 시뮬레이션 결과 자동 출력
     strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
     results = []
-    payoff_curves = {}
     for strategy in strategies:
         input_data = {
             "stock_price": float(price),
@@ -90,6 +89,7 @@ try:
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
             ]
         out = run_strategy(input_data)
+        
         # run_strategy 결과 안전 처리
         def safe_float(value, default=0.0):
             if value is None:
@@ -107,35 +107,43 @@ try:
             "기대수익": safe_float(out["expected_profit"]) if isinstance(out, dict) and "expected_profit" in out else safe_float(getattr(out, "expected_profit", None)),
             "기대손실": safe_float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else safe_float(getattr(out, "expected_loss", None)),
         })
-        # 손익곡선 데이터 추출 (dict/객체/중첩 dict 모두 지원)
-        payoff_data = None
-        # 가설 1: out.data가 dict일 경우 (가장 가능성 높음)
-        if hasattr(out, 'data') and isinstance(out.data, dict):
-            payoff_data = out.data
-        # 가설 2: out 자체가 dict일 경우
-        elif isinstance(out, dict):
-            payoff_data = out
-
-        if payoff_data and "stock_prices" in payoff_data and "profit_loss" in payoff_data:
-            payoff_curves[strategy] = (payoff_data["stock_prices"], payoff_data["profit_loss"])
-        elif hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
-            payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
-        else:
-            payoff_curves[strategy] = ([], [])
-            st.warning(f"{strategy} 전략: 손익곡선 데이터를 찾을 수 없습니다.")
     df = pd.DataFrame(results)
     st.subheader("전략별 시뮬레이션 결과")
     st.dataframe(df)
 
-    # 1번: 전략별 손익곡선 시각화
+    # 1번: 전략별 손익곡선 시각화 (직접 계산)
     st.subheader("전략별 손익곡선(수익/손실) 그래프")
+
+    # 손익계산을 위한 주가 범위 생성
+    x_prices = np.linspace(float(price) * 0.8, float(price) * 1.2, 100)
+
     for strategy in strategies:
-        x, y = payoff_curves[strategy]
+        y_payoff = np.zeros_like(x_prices)
+    
+        if strategy == "long_call":
+            y_payoff = np.maximum(0, x_prices - float(strike)) - call_premium_val
+
+        elif strategy == "short_put":
+            y_payoff = put_premium_val - np.maximum(0, float(strike) - x_prices)
+        
+        elif strategy == "vertical_call_spread":
+            next_strike = float(strike) + 5
+            next_call_premium_vals = calls[calls['strike'] == next_strike]['lastPrice'].values
+            next_call_premium_val = 1.0
+            if len(next_call_premium_vals) > 0 and next_call_premium_vals[0] is not None and not pd.isna(next_call_premium_vals[0]):
+                next_call_premium_val = float(next_call_premium_vals[0])
+            long_call_payoff = np.maximum(0, x_prices - float(strike)) - call_premium_val
+            short_call_payoff = -(np.maximum(0, x_prices - next_strike) - next_call_premium_val)
+            y_payoff = long_call_payoff + short_call_payoff
+
+        elif strategy == "covered_call":
+            stock_profit = x_prices - float(price)
+            short_call_payoff = -(np.maximum(0, x_prices - float(strike)) - call_premium_val)
+            y_payoff = stock_profit + short_call_payoff
+
         fig, ax = plt.subplots()
-        if len(x) > 0 and len(y) > 0:
-            ax.plot(x, y, label=strategy)
-        else:
-            ax.text(0.5, 0.5, "손익곡선 데이터 없음", ha='center', va='center')
+        ax.plot(x_prices, y_payoff, label=strategy)
+        ax.axhline(0, color='black', linestyle='--', linewidth=0.5)
         ax.axvline(float(price), color='gray', linestyle='--', label='현재가')
         ax.set_title(f"{strategy} 손익곡선")
         ax.set_xlabel("기초자산 가격")
