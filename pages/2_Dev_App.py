@@ -23,7 +23,9 @@ try:
     puts = chain.puts
     st.write(f"콜옵션 {len(calls)}개, 풋옵션 {len(puts)}개")
     strikes = sorted(list(set(calls['strike']).union(set(puts['strike']))))
-    strike = st.selectbox("행사가 선택", strikes)
+    # 현재가에 가장 가까운 행사가 인덱스 찾기
+    closest_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - price))
+    strike = st.selectbox("행사가 선택", strikes, index=closest_idx)
     call_premium = calls[calls['strike'] == strike]['lastPrice'].values
     put_premium = puts[puts['strike'] == strike]['lastPrice'].values
     call_premium = float(call_premium[0]) if len(call_premium) > 0 else None
