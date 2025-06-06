@@ -13,9 +13,9 @@ try:
     data = yf.Ticker(ticker)
     price = data.history(period='1d')['Close'].iloc[-1]
     st.subheader(f"기초자산({ticker.upper()}) 현재가: ${price:.2f}")
-    # 옵션 만기일 필터링: 오늘 이후 만기만 선택 (오늘은 제외)
-    today = datetime.today().date()
-    expiries = [d for d in data.options if datetime.strptime(d, "%Y-%m-%d").date() > today]
+    # 오늘(UTC 기준) 날짜 구하기
+    today_utc = datetime.utcnow().date()
+    expiries = [d for d in data.options if datetime.strptime(d, "%Y-%m-%d").date() > today_utc]
     if not expiries:
         st.error("오늘 이후 만기 옵션이 없습니다.")
         st.stop()
@@ -24,10 +24,9 @@ try:
     calls = chain.calls
     puts = chain.puts
     st.write(f"콜옵션 {len(calls)}개, 풋옵션 {len(puts)}개")
-    strikes = sorted(list(set(calls['strike']).union(set(puts['strike']))))
-    # 현재가에 가장 가까운 행사가 인덱스 찾기 (strikes가 비어있지 않을 때만)
+    strikes = sorted([float(s) for s in set(calls['strike']).union(set(puts['strike']))])
     if strikes:
-        closest_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - price))
+        closest_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - float(price)))
     else:
         closest_idx = 0
     strike = st.selectbox("행사가 선택", strikes, index=closest_idx)
