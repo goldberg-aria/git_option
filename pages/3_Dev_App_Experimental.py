@@ -45,8 +45,13 @@ try:
     strike = st.selectbox("행사가 선택", strikes, index=closest_idx)
     call_premium = calls[calls['strike'] == strike]['lastPrice'].values
     put_premium = puts[puts['strike'] == strike]['lastPrice'].values
-    call_premium_val = float(call_premium[0]) if len(call_premium) > 0 else 2.0
-    put_premium_val = float(put_premium[0]) if len(put_premium) > 0 else 1.5
+    # 프리미엄 안전 처리 (None, NaN 포함)
+    call_premium_val = 2.0
+    if len(call_premium) > 0 and call_premium[0] is not None and not pd.isna(call_premium[0]):
+        call_premium_val = float(call_premium[0])
+    put_premium_val = 1.5
+    if len(put_premium) > 0 and put_premium[0] is not None and not pd.isna(put_premium[0]):
+        put_premium_val = float(put_premium[0])
     st.write(f"콜옵션 프리미엄: {call_premium_val}, 풋옵션 프리미엄: {put_premium_val}")
 
     # 전략별 시뮬레이션 결과 자동 출력
@@ -85,13 +90,22 @@ try:
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
             ]
         out = run_strategy(input_data)
+        # run_strategy 결과 안전 처리
+        def safe_float(value, default=0.0):
+            if value is None:
+                return default
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return default
+        
         results.append({
             "전략": strategy,
-            "승률": float(out["probability_of_profit"]) if isinstance(out, dict) and "probability_of_profit" in out else float(getattr(out, "probability_of_profit", 0)),
-            "최대수익": float(out["maximum_return"]) if isinstance(out, dict) and "maximum_return" in out else float(getattr(out, "maximum_return_in_the_domain", 0)),
-            "최대손실": float(out["minimum_return"]) if isinstance(out, dict) and "minimum_return" in out else float(getattr(out, "minimum_return_in_the_domain", 0)),
-            "기대수익": float(out["expected_profit"]) if isinstance(out, dict) and "expected_profit" in out else float(getattr(out, "expected_profit", 0)),
-            "기대손실": float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else float(getattr(out, "expected_loss", 0)),
+            "승률": safe_float(out["probability_of_profit"]) if isinstance(out, dict) and "probability_of_profit" in out else safe_float(getattr(out, "probability_of_profit", None)),
+            "최대수익": safe_float(out["maximum_return"]) if isinstance(out, dict) and "maximum_return" in out else safe_float(getattr(out, "maximum_return_in_the_domain", None)),
+            "최대손실": safe_float(out["minimum_return"]) if isinstance(out, dict) and "minimum_return" in out else safe_float(getattr(out, "minimum_return_in_the_domain", None)),
+            "기대수익": safe_float(out["expected_profit"]) if isinstance(out, dict) and "expected_profit" in out else safe_float(getattr(out, "expected_profit", None)),
+            "기대손실": safe_float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else safe_float(getattr(out, "expected_loss", None)),
         })
         # 손익곡선 데이터 추출 (dict/객체 모두 지원)
         if isinstance(out, dict):
