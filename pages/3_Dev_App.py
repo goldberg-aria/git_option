@@ -5,6 +5,9 @@ from optionlab import run_strategy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("Agg")  # streamlit 호환 백엔드 강제
 
 st.set_page_config(page_title="실제 옵션 체인 기반 전략 추천 (확장 실험)", layout="centered")
 st.title("실제 옵션 체인 기반 전략 추천 (개발 중/확장)")
@@ -108,6 +111,7 @@ try:
         ax.set_ylabel("수익/손실")
         ax.legend()
         st.pyplot(fig)
+        plt.close(fig)  # 리소스 정리
 
 except Exception as e:
     st.error(f"데이터 수집 또는 평가 중 오류 발생: {e}") 
