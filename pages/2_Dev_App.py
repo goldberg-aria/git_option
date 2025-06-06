@@ -1,6 +1,6 @@
 import streamlit as st
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 from optionlab import run_strategy
 import pandas as pd
 
@@ -13,7 +13,10 @@ try:
     data = yf.Ticker(ticker)
     price = data.history(period='1d')['Close'].iloc[-1]
     st.subheader(f"기초자산({ticker.upper()}) 현재가: ${price:.2f}")
-    expiries = data.options
+    expiries = [d for d in data.options if datetime.strptime(d, "%Y-%m-%d") > datetime.today()]
+    if not expiries:
+        st.error("오늘 이후 만기 옵션이 없습니다.")
+        st.stop()
     expiry = st.selectbox("옵션 만기 선택", expiries)
     chain = data.option_chain(expiry)
     calls = chain.calls
@@ -33,6 +36,8 @@ try:
     for strategy in strategies:
         start_date = datetime.today()
         target_date = datetime.strptime(expiry, "%Y-%m-%d")
+        if start_date >= target_date:
+            start_date = target_date - timedelta(days=1)
         input_data = {
             "stock_price": float(price),
             "start_date": start_date.strftime("%Y-%m-%d"),
