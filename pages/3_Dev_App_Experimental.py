@@ -87,18 +87,25 @@ try:
         out = run_strategy(input_data)
         results.append({
             "전략": strategy,
-            "승률": float(out.probability_of_profit),
-            "최대수익": float(out.maximum_return_in_the_domain),
-            "최대손실": float(out.minimum_return_in_the_domain),
-            "기대수익": float(out.expected_profit) if out.expected_profit is not None else None,
-            "기대손실": float(out.expected_loss) if out.expected_loss is not None else None,
+            "승률": float(out["probability_of_profit"]) if isinstance(out, dict) and "probability_of_profit" in out else float(getattr(out, "probability_of_profit", 0)),
+            "최대수익": float(out["maximum_return"]) if isinstance(out, dict) and "maximum_return" in out else float(getattr(out, "maximum_return_in_the_domain", 0)),
+            "최대손실": float(out["minimum_return"]) if isinstance(out, dict) and "minimum_return" in out else float(getattr(out, "minimum_return_in_the_domain", 0)),
+            "기대수익": float(out["expected_profit"]) if isinstance(out, dict) and "expected_profit" in out else float(getattr(out, "expected_profit", 0)),
+            "기대손실": float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else float(getattr(out, "expected_loss", 0)),
         })
-        # 1번: 전략별 손익곡선 시각화 데이터 저장 (속성 체크)
-        if hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
-            payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
+        # 손익곡선 데이터 추출 (dict/객체 모두 지원)
+        if isinstance(out, dict):
+            if "stock_prices" in out and "profit_loss" in out:
+                payoff_curves[strategy] = (out["stock_prices"], out["profit_loss"])
+            else:
+                payoff_curves[strategy] = ([], [])
+                st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out keys: {list(out.keys())}")
         else:
-            payoff_curves[strategy] = ([], [])
-            st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out 속성: {dir(out)}")
+            if hasattr(out, "stock_price_range") and hasattr(out, "payoff_curve"):
+                payoff_curves[strategy] = (out.stock_price_range, out.payoff_curve)
+            else:
+                payoff_curves[strategy] = ([], [])
+                st.warning(f"{strategy} 전략: 손익곡선 데이터가 없습니다. out 속성: {dir(out)}")
     df = pd.DataFrame(results)
     st.subheader("전략별 시뮬레이션 결과")
     st.dataframe(df)
