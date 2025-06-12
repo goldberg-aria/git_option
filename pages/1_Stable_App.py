@@ -36,6 +36,7 @@ if submitted:
                         "interest_rate": 0.01,
                         "min_stock": price * 0.8,
                         "max_stock": price * 1.2,
+                        "profit_target": round(price * 0.05, 2),  # 5% 수익 기준
                     }
                     if strat == "long_call":
                         input_data["strategy"] = [{
@@ -72,6 +73,15 @@ if submitted:
             st.dataframe(df.sort_values('승률(Probability of Profit)', ascending=False).reset_index(drop=True))
             st.subheader("전략별 승률 Bar Chart")
             st.bar_chart(df.set_index('전략')['승률(Probability of Profit)'])
+            
+            st.markdown("""
+---
+#### ⚠️ 승률(Probability of Profit) 산출 기준 안내
+- 본 페이지의 승률은 **각 전략이 만기 시점에 5% 이상의 수익을 달성할 확률**을 의미합니다.
+- 기존 0.01달러(1센트) 기준은 실제 투자에서 의미가 약해, **실전 투자에서 참고할 만한 5% 수익 기준**으로 산출합니다.
+- 이로 인해, 표기된 승률은 기존보다 낮게 나올 수 있습니다.
+- 옵션 매수(long) 전략은 특히 5% 이상 수익 확률이 매우 낮을 수 있습니다.
+""")
         else:
             st.warning("결과가 없습니다.")
     except Exception as e:
