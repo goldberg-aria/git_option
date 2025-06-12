@@ -7,10 +7,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 
-matplotlib.use("Agg")  # streamlit 호환 백엔드 강제
+matplotlib.use("Agg")
 
-st.set_page_config(page_title="Option Chain Strategy Recommendation (5_Dev_App_Table_Recommend)", layout="centered")
-st.title("Option Chain Strategy Recommendation (5_Dev_App_Table_Recommend)")
+st.set_page_config(page_title="Option Buy Only (6_Option_Buy_Only)", layout="centered")
+st.title("미국 옵션 매수 전략 시뮬레이터 (Option Buy Only)")
+
+st.markdown("""
+#### 🇰🇷 한국 투자자 전용 안내
+- 이 페이지는 **미국 옵션 매수(롱콜, 콜스프레드) 전략**만 시뮬레이션합니다.
+- 국내 증권사에서는 미국 옵션 매도(숏풋, 커버드콜)가 불가하므로, 매수 전략만 제공합니다.
+- 승률 산출 기준: **프리미엄(투자금) 대비 목표수익률(%) + 거래비용(%)** 이상 순수익 달성 시 '승'으로 간주합니다.
+""")
 
 ticker = st.text_input("Enter ticker (e.g. AAPL, TSLA, SPY)", value="AAPL")
 
@@ -18,7 +25,6 @@ try:
     data = yf.Ticker(ticker)
     price = data.history(period='1d')['Close'].iloc[-1]
     st.subheader(f"Underlying ({ticker.upper()}) Price: ${price:.2f}")
-    # 오늘로부터 최소 2일 이후 만기일만 허용
     today_utc = datetime.now(timezone.utc).date()
     min_date = today_utc + timedelta(days=2)
     expiries = [d for d in data.options if datetime.strptime(d, "%Y-%m-%d").date() >= min_date]
@@ -27,7 +33,6 @@ try:
         st.stop()
     expiry = st.selectbox("Select expiry", expiries)
     target_date = datetime.strptime(expiry, "%Y-%m-%d").date()
-    # start_date를 target_date보다 확실히 2일 이전으로 설정
     start_date = target_date - timedelta(days=2)
     chain = data.option_chain(expiry)
     calls = chain.calls
@@ -43,7 +48,6 @@ try:
     strike = st.selectbox("Select strike", strikes, index=closest_idx)
     call_premium = calls[calls['strike'] == strike]['lastPrice'].values
     put_premium = puts[puts['strike'] == strike]['lastPrice'].values
-    # 프리미엄 안전 처리 (None, NaN 포함)
     call_premium_val = 2.0
     if len(call_premium) > 0 and call_premium[0] is not None and not pd.isna(call_premium[0]):
         call_premium_val = float(call_premium[0])
@@ -52,7 +56,6 @@ try:
         put_premium_val = float(put_premium[0])
     st.write(f"Call premium: {call_premium_val}, Put premium: {put_premium_val}")
 
-    # 4: Option chain premium/IV/delta table & visualization (English)
     st.subheader("Option Chain Premium/IV/Delta Visualization")
     call_delta = calls['delta'] if 'delta' in calls.columns else np.nan
     put_delta = puts['delta'] if 'delta' in puts.columns else np.nan
@@ -66,7 +69,6 @@ try:
         'Put Delta': [float(puts[puts['strike'] == s]['delta'].values[0]) if 'delta' in puts.columns and len(puts[puts['strike'] == s]['delta'].values) > 0 else np.nan for s in strikes],
     })
     st.dataframe(chain_df)
-    # Premium/IV/Delta visualization
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(chain_df['Strike'], chain_df['Call Premium'], label='Call Premium', marker='o')
     ax.plot(chain_df['Strike'], chain_df['Put Premium'], label='Put Premium', marker='o')
@@ -93,7 +95,6 @@ try:
         st.pyplot(fig)
         plt.close(fig)
 
-    # 2번 기능: S&P500 VIX(변동성 지수) 표시 및 시뮬레이션에 반영
     vix_vol = 0.2
     try:
         vix = yf.Ticker("^VIX")
@@ -104,8 +105,7 @@ try:
         st.info("VIX data could not be loaded.")
         vix_vol = 0.2
 
-    # 전략별 시뮬레이션 결과 자동 출력
-    strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
+    strategies = ["long_call", "vertical_call_spread"]
     results = []
     col1, col2 = st.columns(2)
     with col1:
@@ -129,14 +129,7 @@ try:
             input_data["strategy"] = [{
                 "type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"
             }]
-            # 매수: 프리미엄 기준
             invest_base = call_premium_val
-        elif strategy == "short_put":
-            input_data["strategy"] = [{
-                "type": "put", "strike": float(strike), "premium": put_premium_val, "n": 1, "action": "sell"
-            }]
-            # 매도: 증거금(행사가×100×40%) 기준
-            invest_base = float(strike) * 100 * 0.4
         elif strategy == "vertical_call_spread":
             next_strike = float(strike) + 5
             next_call_premium = calls[calls['strike'] == next_strike]['lastPrice'].values
@@ -145,20 +138,10 @@ try:
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"},
                 {"type": "call", "strike": next_strike, "premium": next_call_premium_val, "n": 1, "action": "sell"},
             ]
-            # 매수: 프리미엄 합산 기준
             invest_base = call_premium_val - next_call_premium_val
-        elif strategy == "covered_call":
-            input_data["strategy"] = [
-                {"type": "stock", "n": 1, "action": "buy"},
-                {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
-            ]
-            # 매도: 기초자산(주식)×100×40% 기준
-            invest_base = float(price) * 100 * 0.4
         profit_target = invest_base * (target_pct + cost_pct) / 100
         input_data["profit_target"] = profit_target
         out = run_strategy(input_data)
-        
-        # run_strategy 결과 안전 처리
         def safe_float(value, default=0.0):
             if value is None:
                 return default
@@ -166,7 +149,6 @@ try:
                 return float(value)
             except (TypeError, ValueError):
                 return default
-        
         results.append({
             "Strategy": strategy,
             "Win Rate": safe_float(out["probability_of_profit"]) if isinstance(out, dict) and "probability_of_profit" in out else safe_float(getattr(out, "probability_of_profit", None)),
@@ -176,33 +158,20 @@ try:
             "Expected Loss": safe_float(out["expected_loss"]) if isinstance(out, dict) and "expected_loss" in out else safe_float(getattr(out, "expected_loss", None)),
         })
     df = pd.DataFrame(results)
-    # 5번 기능: 전략별 승률/기대수익/최대손실 등 지표 하이라이트 및 자동 추천
     st.subheader("Strategy Simulation Results")
-    # 승률이 가장 높은 전략 추천
     best_row = df.loc[df['Win Rate'].idxmax()]
     st.markdown(f"### 🏆 Recommended Strategy: **{best_row['Strategy']}** (Win Rate: {best_row['Win Rate']:.2%}, Expected Profit: {best_row['Expected Profit']:.2f})")
-    # 주요 지표 하이라이트(스타일링)
     def highlight_max(s):
         is_max = s == s.max()
         return ['background-color: #ffe082' if v else '' for v in is_max]
     styled_df = df.style.apply(highlight_max, subset=['Win Rate', 'Expected Profit', 'Maximum Return'], axis=0)
     st.dataframe(styled_df, use_container_width=True)
-
-    # 1번: 전략별 손익곡선 시각화 (직접 계산)
     st.subheader("Strategy Payoff Curves")
-
-    # 손익계산을 위한 주가 범위 생성
     x_prices = np.linspace(float(price) * 0.8, float(price) * 1.2, 100)
-
     for strategy in strategies:
         y_payoff = np.zeros_like(x_prices)
-    
         if strategy == "long_call":
             y_payoff = np.maximum(0, x_prices - float(strike)) - call_premium_val
-
-        elif strategy == "short_put":
-            y_payoff = put_premium_val - np.maximum(0, float(strike) - x_prices)
-        
         elif strategy == "vertical_call_spread":
             next_strike = float(strike) + 5
             next_call_premium_vals = calls[calls['strike'] == next_strike]['lastPrice'].values
@@ -212,12 +181,6 @@ try:
             long_call_payoff = np.maximum(0, x_prices - float(strike)) - call_premium_val
             short_call_payoff = -(np.maximum(0, x_prices - next_strike) - next_call_premium_val)
             y_payoff = long_call_payoff + short_call_payoff
-
-        elif strategy == "covered_call":
-            stock_profit = x_prices - float(price)
-            short_call_payoff = -(np.maximum(0, x_prices - float(strike)) - call_premium_val)
-            y_payoff = stock_profit + short_call_payoff
-
         fig, ax = plt.subplots()
         ax.plot(x_prices, y_payoff, label=strategy)
         ax.axhline(0, color='black', linestyle='--', linewidth=0.5)
@@ -227,18 +190,6 @@ try:
         ax.set_ylabel("Profit/Loss")
         ax.legend()
         st.pyplot(fig)
-        plt.close(fig)  # 리소스 정리
-
-    st.markdown("""
-    <br>
-    <span style='font-size:1.1em; color:#90caf9;'>
-    <b>승률 산출 기준 안내</b><br>
-    - <b>매수 전략</b> (long_call, vertical_call_spread): <b>프리미엄(투자금)</b> 기준<br>
-    - <b>매도 전략</b> (short_put, covered_call): <b>증거금(행사가/기초자산×100×40%)</b> 기준<br>
-    - 입력한 목표수익률(%) + 거래비용(%)을 해당 기준에 곱해, <b>그 이상 순수익 달성 시 '승'으로 간주</b>합니다.<br>
-    - (40%는 미국 옵션 마진 규정의 보수적 예시값이며, 실제 증거금은 브로커/상품별로 다를 수 있습니다)
-    </span>
-    """, unsafe_allow_html=True)
-
+        plt.close(fig)
 except Exception as e:
     st.error(f"Data collection or evaluation error occurred: {e}") 
