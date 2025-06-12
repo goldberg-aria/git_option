@@ -129,10 +129,14 @@ try:
             input_data["strategy"] = [{
                 "type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"
             }]
+            # 매수: 프리미엄 기준
+            invest_base = call_premium_val
         elif strategy == "short_put":
             input_data["strategy"] = [{
                 "type": "put", "strike": float(strike), "premium": put_premium_val, "n": 1, "action": "sell"
             }]
+            # 매도: 증거금(행사가×100×20%) 기준
+            invest_base = float(strike) * 100 * 0.2
         elif strategy == "vertical_call_spread":
             next_strike = float(strike) + 5
             next_call_premium = calls[calls['strike'] == next_strike]['lastPrice'].values
@@ -141,14 +145,16 @@ try:
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"},
                 {"type": "call", "strike": next_strike, "premium": next_call_premium_val, "n": 1, "action": "sell"},
             ]
+            # 매수: 프리미엄 합산 기준
+            invest_base = call_premium_val - next_call_premium_val
         elif strategy == "covered_call":
             input_data["strategy"] = [
                 {"type": "stock", "n": 1, "action": "buy"},
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
             ]
-        # 프리미엄(투자금) 합계 계산
-        total_premium = sum([leg.get("premium", 0) * leg.get("n", 1) for leg in input_data["strategy"] if leg["type"] != "stock"])
-        profit_target = total_premium * (target_pct + cost_pct) / 100
+            # 매도: 기초자산(주식)×100×20% 기준
+            invest_base = float(price) * 100 * 0.2
+        profit_target = invest_base * (target_pct + cost_pct) / 100
         input_data["profit_target"] = profit_target
         out = run_strategy(input_data)
         
@@ -222,6 +228,17 @@ try:
         ax.legend()
         st.pyplot(fig)
         plt.close(fig)  # 리소스 정리
+
+    st.markdown("""
+    <br>
+    <span style='font-size:1.1em; color:#90caf9;'>
+    <b>승률 산출 기준 안내</b><br>
+    - <b>매수 전략</b> (long_call, vertical_call_spread): <b>프리미엄(투자금)</b> 기준<br>
+    - <b>매도 전략</b> (short_put, covered_call): <b>증거금(행사가/기초자산×100×20%)</b> 기준<br>
+    - 입력한 목표수익률(%) + 거래비용(%)을 해당 기준에 곱해, <b>그 이상 순수익 달성 시 '승'으로 간주</b>합니다.<br>
+    - (20%는 미국 옵션 마진 규정의 예시값이며, 실제 증거금은 브로커/상품별로 다를 수 있습니다)
+    </span>
+    """, unsafe_allow_html=True)
 
 except Exception as e:
     st.error(f"Data collection or evaluation error occurred: {e}") 
