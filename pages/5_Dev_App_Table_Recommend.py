@@ -107,6 +107,14 @@ try:
     # 전략별 시뮬레이션 결과 자동 출력
     strategies = ["long_call", "short_put", "vertical_call_spread", "covered_call"]
     results = []
+    col1, col2 = st.columns(2)
+    with col1:
+        target_pct = st.number_input("목표수익률 (%)", min_value=1.0, max_value=50.0, value=5.0, step=0.5)
+    with col2:
+        cost_pct = st.number_input("거래비용(수수료+슬리피지, %)", min_value=0.0, max_value=10.0, value=3.0, step=0.5)
+
+    st.info(f"승률 산출 기준: 프리미엄(투자금) 대비 순수익이 {target_pct}% + 거래비용 {cost_pct}% = 총 {target_pct+cost_pct}% 이상일 때만 '승'으로 간주합니다.")
+
     for strategy in strategies:
         input_data = {
             "stock_price": float(price),
@@ -138,6 +146,10 @@ try:
                 {"type": "stock", "n": 1, "action": "buy"},
                 {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
             ]
+        # 프리미엄(투자금) 합계 계산
+        total_premium = sum([leg.get("premium", 0) * leg.get("n", 1) for leg in input_data["strategy"] if leg["type"] != "stock"])
+        profit_target = total_premium * (target_pct + cost_pct) / 100
+        input_data["profit_target"] = profit_target
         out = run_strategy(input_data)
         
         # run_strategy 결과 안전 처리
