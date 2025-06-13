@@ -35,6 +35,8 @@ try:
     calls = chain.calls
     puts = chain.puts
     strikes = sorted([float(s) for s in set(calls['strike']).union(set(puts['strike']))])
+    # 현재가 ±20% 범위로 제한
+    strikes = [s for s in strikes if price * 0.8 <= s <= price * 1.2]
 except Exception as e:
     st.error(f"옵션체인 데이터 로딩 실패: {e}")
     st.stop()
