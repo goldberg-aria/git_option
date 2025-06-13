@@ -71,8 +71,10 @@ if mode == "자동 추천":
             }
             if strategy == "롱콜":
                 input_data["strategy"] = [{"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"}]
+                invest_base = call_premium_val * 100
             elif strategy == "숏풋":
                 input_data["strategy"] = [{"type": "put", "strike": float(strike), "premium": put_premium_val, "n": 1, "action": "sell"}]
+                invest_base = put_premium_val * 100
             elif strategy == "콜스프레드":
                 next_strike = float(strike) + 5
                 next_call_premium = calls[calls['strike'] == next_strike]['lastPrice'].values
@@ -81,11 +83,15 @@ if mode == "자동 추천":
                     {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"},
                     {"type": "call", "strike": next_strike, "premium": next_call_premium_val, "n": 1, "action": "sell"},
                 ]
+                invest_base = (call_premium_val - next_call_premium_val) * 100
             elif strategy == "커버드콜":
                 input_data["strategy"] = [
                     {"type": "stock", "n": 1, "action": "buy"},
                     {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
                 ]
+                invest_base = float(price) * 100 * 0.4  # 예시: 증거금 기준(40%)
+            profit_target = invest_base * 0.08  # 예시: 8% (목표수익률+거래비용)
+            input_data["profit_target"] = profit_target
             out = run_strategy(input_data)
             def safe_float(value, default=0.0):
                 if value is None:
@@ -142,8 +148,10 @@ elif mode == "예측 기반 추천":
     }
     if strategy == "롱콜":
         input_data["strategy"] = [{"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"}]
+        invest_base = call_premium_val * 100
     elif strategy == "숏풋":
         input_data["strategy"] = [{"type": "put", "strike": float(strike), "premium": put_premium_val, "n": 1, "action": "sell"}]
+        invest_base = put_premium_val * 100
     elif strategy == "콜스프레드":
         next_strike = float(strike) + 5
         next_call_premium = calls[calls['strike'] == next_strike]['lastPrice'].values
@@ -152,11 +160,15 @@ elif mode == "예측 기반 추천":
             {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "buy"},
             {"type": "call", "strike": next_strike, "premium": next_call_premium_val, "n": 1, "action": "sell"},
         ]
+        invest_base = (call_premium_val - next_call_premium_val) * 100
     elif strategy == "커버드콜":
         input_data["strategy"] = [
             {"type": "stock", "n": 1, "action": "buy"},
             {"type": "call", "strike": float(strike), "premium": call_premium_val, "n": 1, "action": "sell"},
         ]
+        invest_base = float(price) * 100 * 0.4  # 예시: 증거금 기준(40%)
+    profit_target = invest_base * 0.08  # 예시: 8% (목표수익률+거래비용)
+    input_data["profit_target"] = profit_target
     out = run_strategy(input_data)
     def safe_float(value, default=0.0):
         if value is None:
