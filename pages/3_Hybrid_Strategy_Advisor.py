@@ -43,6 +43,36 @@ except Exception as e:
     st.error(f"옵션체인 데이터 로딩 실패: {e}")
     st.stop()
 
+def get_valid_option_premium(chain, strike, option_type='call'):
+    """옵션 프리미엄 유효성 검증 및 추출"""
+    options = chain.calls if option_type == 'call' else chain.puts
+    valid_options = options[
+        (options['strike'] == strike) &
+        (options['volume'] > 0) &
+        (options['lastPrice'] > 0) &
+        options['lastPrice'].notna()
+    ]
+    
+    if valid_options.empty:
+        return None
+        
+    if 'bid' in valid_options.columns and 'ask' in valid_options.columns:
+        spread = (valid_options['ask'] - valid_options['bid']) / valid_options['bid']
+        if spread.iloc[0] > 0.5:  # 50% 이상 스프레드는 제외
+            return None
+            
+    return float(valid_options['lastPrice'].iloc[0])
+
+def filter_valid_strategies(results_df):
+    """신뢰할 수 있는 전략만 필터링"""
+    return results_df[
+        (results_df['승률'] > 0) &
+        (results_df['승률'] <= 1) &
+        (results_df['기대수익'].notna()) &
+        (results_df['최대손실'].notna()) &
+        (abs(results_df['최대손실']) > 0)
+    ]
+
 if mode == "자동 추천":
     st.markdown('''
     #### ✅ 자동 추천: 종목만 입력하면 최적 전략을 자동 추천합니다.
@@ -56,10 +86,13 @@ if mode == "자동 추천":
     strategies = ["롱콜", "숏풋", "콜스프레드", "커버드콜"]
     results = []
     for strike in strikes:
-        call_premium = calls[calls['strike'] == strike]['lastPrice'].values
-        call_premium_val = float(call_premium[0]) if len(call_premium) > 0 else 2.0
-        put_premium = puts[puts['strike'] == strike]['lastPrice'].values
-        put_premium_val = float(put_premium[0]) if len(put_premium) > 0 else 1.5
+        # 옵션 프리미엄 데이터 검증
+        call_premium_val = get_valid_option_premium(chain, strike, 'call')
+        put_premium_val = get_valid_option_premium(chain, strike, 'put')
+        
+        if call_premium_val is None and put_premium_val is None:
+            continue
+        
         iv = float(calls[calls['strike'] == strike]['impliedVolatility'].values[0]) if 'impliedVolatility' in calls.columns and len(calls[calls['strike'] == strike]['impliedVolatility'].values) > 0 else 0.3
         for strategy in strategies:
             input_data = {
@@ -121,10 +154,16 @@ if mode == "자동 추천":
                 "기대수익": safe_float(getattr(out, 'expected_profit', None)),
                 "최대손실": safe_float(getattr(out, 'minimum_return_in_the_domain', None)),
             })
+    # 결과 필터링 및 표시
     df = pd.DataFrame(results)
+    filtered_df = filter_valid_strategies(df)
+    if filtered_df.empty:
+        st.warning("신뢰할 수 있는 전략이 없습니다. 다른 종목이나 만기를 선택해주세요.")
+        st.stop()
+    
     st.subheader("전략별 시뮬레이션 결과 (자동 추천)")
-    st.dataframe(df.sort_values(by=["승률", "기대수익"], ascending=[False, False]).reset_index(drop=True))
-    best_row = df.loc[df['승률'].idxmax()]
+    st.dataframe(filtered_df.sort_values(by=["승률", "기대수익"], ascending=[False, False]).reset_index(drop=True))
+    best_row = filtered_df.loc[filtered_df['승률'].idxmax()]
     st.markdown(f"### 🏆 추천 전략: **{best_row['전략']}** (만기: {best_row['만기']}, 행사가: {best_row['행사가']}, 승률: {best_row['승률']:.2%}, 기대수익: {best_row['기대수익']:.2f})")
 
 elif mode == "예측 기반 추천":
