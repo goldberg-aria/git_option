@@ -136,8 +136,8 @@ if out is not None:
     for s in x_prices:
         test_input = input_data.copy()
         test_input["stock_price"] = s
-        test_input["min_stock"] = s
-        test_input["max_stock"] = s
+        test_input["min_stock"] = s * 0.999
+        test_input["max_stock"] = s * 1.001
         y = run_strategy(test_input)
         y_payoff.append(safe_float(getattr(y, 'maximum_return_in_the_domain', None)))
     fig, ax = plt.subplots(figsize=(8, 4))
