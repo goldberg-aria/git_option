@@ -17,6 +17,10 @@
 - `pages/2_Dev_App.py`: 실시간 옵션 체인 데이터 기반 전략 추천(기본 기능)
 - `pages/3_Dev_App_Experimental.py`: 프리미엄 None/NaN 안전처리, 손익곡선 직접 계산 등 실험적 기능
 - `pages/4_Dev_App_IV.py`: 행사가별 IV(내재변동성) 테이블 및 시각화, VIX 반영
-- `pages/5_Dev_App_Table_Recommend.py`: 프리미엄/IV/델타 표·그래프, 전략별 주요지표 하이라이트 및 자동 추천, UX 강화
+- `pages/5_Dev_App_Table_Recommend.py`: 실전 옵션 전략 추천. 옵션 체인 프리미엄/IV/델타 표·그래프, 전략별 주요지표 하이라이트, 자동 추천, UX 강화. VIX(시장 변동성 지수) 반영, 목표수익률/거래비용 입력, 전략별 손익곡선 시각화.
+- `pages/6_Option_Buy_Only.py`: 미국 옵션 매수(롱콜, 콜스프레드) 전략만 시뮬레이션. 한국 투자자 전용(매도 불가), 프리미엄 기준 승률 산출, 옵션 체인 시각화, 실전 투자 환경 반영.
+- `pages/7_Hybrid_BS_FDM.py`: Black-Scholes 공식과 유한차분법(FDM) 기반 하이브리드 옵션 가격 계산. 두 방식의 결과 비교, 수치해/해석해 시각화, 파라미터 조정, 옵션 가격 이론 실습.
+- `pages/8_RealWorld_Hybrid_Option_Tool.py`: 실전 하이브리드 옵션 전략 도구. 실시간 옵션체인/프리미엄/IV/델타 불러오기, 전략별 시뮬레이션(Black-Scholes/MC array), 승률/기대수익/최대손실/Payoff 곡선 등 실전 지표 제공.
+- `pages/10_readme.py`: 기능 및 사용법 안내 페이지. 프로젝트 개요, 주요 기능, 사용법, 문의/기여 안내 등 한글로 정리.
 
 ---
