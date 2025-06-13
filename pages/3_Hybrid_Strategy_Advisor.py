@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, timezone
 from optionlab import run_strategy
+import optionlab.price_array as price_array
+from optionlab.models import BlackScholesModelInputs
 
 st.set_page_config(page_title="하이브리드 옵션 전략 추천 (3_Hybrid_Strategy_Advisor)", layout="centered")
 st.title("하이브리드 옵션 전략 추천 (Hybrid Strategy Advisor)")
@@ -91,6 +93,17 @@ if mode == "자동 추천":
                 ]
                 invest_base = float(price) * 100 * 0.4  # 예시: 증거금 기준(40%)
             profit_target = invest_base * 0.08  # 예시: 8% (목표수익률+거래비용)
+            # MC array 기반 만기 주가 생성
+            years = (target_date - start_date).days / 365
+            bs_inputs = BlackScholesModelInputs(
+                stock_price=float(price),
+                volatility=iv,
+                interest_rate=0.01,
+                years_to_target_date=years,
+            )
+            arr = price_array.create_price_array(bs_inputs, n=100000, seed=0)
+            input_data["model"] = "array"
+            input_data["array"] = arr
             input_data["profit_target"] = profit_target
             out = run_strategy(input_data)
             def safe_float(value, default=0.0):
@@ -168,6 +181,17 @@ elif mode == "예측 기반 추천":
         ]
         invest_base = float(price) * 100 * 0.4  # 예시: 증거금 기준(40%)
     profit_target = invest_base * 0.08  # 예시: 8% (목표수익률+거래비용)
+    # MC array 기반 만기 주가 생성
+    years = (target_date - start_date).days / 365
+    bs_inputs = BlackScholesModelInputs(
+        stock_price=float(price),
+        volatility=iv,
+        interest_rate=0.01,
+        years_to_target_date=years,
+    )
+    arr = price_array.create_price_array(bs_inputs, n=100000, seed=0)
+    input_data["model"] = "array"
+    input_data["array"] = arr
     input_data["profit_target"] = profit_target
     out = run_strategy(input_data)
     def safe_float(value, default=0.0):
