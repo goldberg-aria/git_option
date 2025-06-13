@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import optionlab.price_array as price_array
+from optionlab.models import BlackScholesModelInputs
 
 matplotlib.use("Agg")
 
@@ -141,6 +143,17 @@ try:
             ]
             invest_base = call_premium_val - next_call_premium_val
         profit_target = invest_base * (target_pct + cost_pct) / 100
+        # MC array 기반 만기 주가 생성
+        years = (target_date - start_date).days / 365
+        bs_inputs = BlackScholesModelInputs(
+            stock_price=float(price),
+            volatility=vix_vol,
+            interest_rate=0.01,
+            years_to_target_date=years,
+        )
+        arr = price_array.create_price_array(bs_inputs, n=100000, seed=0)
+        input_data["model"] = "array"
+        input_data["array"] = arr
         input_data["profit_target"] = profit_target
         out = run_strategy(input_data)
         def safe_float(value, default=0.0):
